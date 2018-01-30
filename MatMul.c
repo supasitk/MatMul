@@ -1,24 +1,31 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/time.h>
+#ifdef OMP
+#include <omp.h>
+#endif
 
+typedef int TYPE;
 #define HIGH 	10
 #define LOW 	1
 
 void usage(void)
 {
 	printf("Usage:\n");
-	printf("\t-s <size>\n");
+	printf("\t-s <size of matrix>\n");
+	printf("\t-t <number of thread>\n");
 	exit(-1);
 }
 
 int main(int argc, char *argv[])
 {
 	int i, j, k, sum;
-	time_t seed, start, end;
-	double cpu_time_used;
-	int size;
-	int **A, **B, **C;
+	time_t seed;
+	float elapsed_time;
+	struct timeval t1, t2;
+	int size, num_threads;
+	TYPE **A, **B, **C;
 
 	/* Extract parameters of command */
 	while ((argc > 1) && (argv[1][0] == '-'))
@@ -28,7 +35,9 @@ int main(int argc, char *argv[])
 			case 's':
 				size = atoi(argv[2]);
 				break;
-
+			case 't':
+				num_threads = atoi(argv[2]);
+				break;
 			default:
 				printf("Wrong argument: %s\n", argv[1]);
 				usage();
@@ -39,16 +48,16 @@ int main(int argc, char *argv[])
 
 	/* Allocate memory and initialize value of matrix */ 	
 	printf("Initializing Matrix [%dx%d]........\n", size, size);
-	start = clock();
+	gettimeofday(&t1, NULL);
 	
-	A = malloc(size * sizeof(int *));
-	B = malloc(size * sizeof(int *));
-	C = malloc(size * sizeof(int *));
+	A = malloc(size * sizeof(TYPE *));
+	B = malloc(size * sizeof(TYPE *));
+	C = malloc(size * sizeof(TYPE *));
 	for (i=0; i<size; i++)
 	{
-		A[i] = malloc(size * sizeof(int));
-		B[i] = malloc(size * sizeof(int));
-		C[i] = malloc(size * sizeof(int));
+		A[i] = malloc(size * sizeof(TYPE));
+		B[i] = malloc(size * sizeof(TYPE));
+		C[i] = malloc(size * sizeof(TYPE));
 	} 
 
 	time(&seed);
@@ -62,17 +71,24 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	end = clock();
-	cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-	printf("Execution Time = %f seconds.\n", cpu_time_used);
+	gettimeofday(&t2, NULL);
+	elapsed_time = (float)((t2.tv_sec * 1000000 + t2.tv_usec) - (t1.tv_sec * 1000000 + t1.tv_usec)) / 1000000; 
+	printf("Execution Time = %f seconds.\n", elapsed_time);
 	printf("----------------------------------------------------------------\n");
 
 
 	/* Matrix multiplication */
-	printf("Matrix Multiplication is being processed........\n");
-	start = clock();
-	
+	printf("Matrix Multiplication is being processed with %d threads........\n", num_threads);
+	gettimeofday(&t1, NULL);
+
+#ifdef OMP
+	omp_set_num_threads(num_threads);
+#endif
+
 	sum = 0;
+#ifdef OMP
+	#pragma omp parallel for private(i, j, k, sum)
+#endif
 	for (i=0; i<size; i++)
 	{
 		for (j=0; j<size; j++)
@@ -86,9 +102,9 @@ int main(int argc, char *argv[])
 		sum = 0;
 	}
 
-	end = clock();
-	cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-	printf("Execution Time = %f seconds.\n", cpu_time_used);
+	gettimeofday(&t2, NULL);
+	elapsed_time = (float)((t2.tv_sec * 1000000 + t2.tv_usec) - (t1.tv_sec * 1000000 + t1.tv_usec)) / 1000000; 
+	printf("Execution Time = %f seconds.\n", elapsed_time);
 	printf("----------------------------------------------------------------\n");
 	
 	printf("Completed!!!\n");
