@@ -18,6 +18,9 @@ void usage(void)
 	exit(-1);
 }
 
+#ifdef CUDA
+__global__
+#endif
 void MatMul(int size, TYPE **A, TYPE **B, TYPE **C, int num_threads)
 {
 	int i, j, k, sum;
@@ -76,14 +79,26 @@ int main(int argc, char *argv[])
 	printf("Initializing Matrix [%dx%d]........\n", size, size);
 	gettimeofday(&t1, NULL);
 	
+#ifndef CUDA
 	A = malloc(size * sizeof(TYPE *));
 	B = malloc(size * sizeof(TYPE *));
 	C = malloc(size * sizeof(TYPE *));
+#else
+	cudaMallocManaged(&A, size*sizeof(TYPE *));
+	cudaMallocManaged(&B, size*sizeof(TYPE *));
+	cudaMallocManaged(&C, size*sizeof(TYPE *));
+#endif
 	for (i=0; i<size; i++)
 	{
+#ifndef CUDA
 		A[i] = malloc(size * sizeof(TYPE));
 		B[i] = malloc(size * sizeof(TYPE));
 		C[i] = malloc(size * sizeof(TYPE));
+#else
+		cudaMallocManaged(&A[i], size*sizeof(TYPE));
+		cudaMallocManaged(&B[i], size*sizeof(TYPE));
+		cudaMallocManaged(&C[i], size*sizeof(TYPE));
+#endif
 	} 
 
 	time(&seed);
@@ -107,7 +122,12 @@ int main(int argc, char *argv[])
 	printf("Matrix Multiplication is being processed with %d threads........\n", num_threads);
 	gettimeofday(&t1, NULL);
 
+#ifndef CUDA
 	MatMul(size, A, B, C, num_threads);
+#else
+	MatMul<<<1, 1>>>(size, A, B, C, num_threads);
+	cudaDeviceSynchronize();
+#endif
 
 	gettimeofday(&t2, NULL);
 	elapsed_time = (float)((t2.tv_sec * 1000000 + t2.tv_usec) - (t1.tv_sec * 1000000 + t1.tv_usec)) / 1000000; 
@@ -118,13 +138,25 @@ int main(int argc, char *argv[])
 	/* Free allocated memory of matrix A, B, C */
 	for(i=0; i<size; i++)
 	{
+#ifndef CUDA
 		free(A[i]);
 		free(B[i]);
 		free(C[i]);
+#else
+		cudaFree(A[i]);
+		cudaFree(B[i]);
+		cudaFree(C[i]);
+#endif
 	}	
+#ifndef CUDA
 	free(A);
 	free(B);
 	free(C);
+#else
+	cudaFree(A);
+	cudaFree(B);
+	cudaFree(C);
+#endif
 
 	printf("Completed!!!\n");
 
