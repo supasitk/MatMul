@@ -18,9 +18,35 @@ void usage(void)
 	exit(-1);
 }
 
-int main(int argc, char *argv[])
+void MatMul(int size, TYPE **A, TYPE **B, TYPE **C, int num_threads)
 {
 	int i, j, k, sum;
+
+#ifdef OMP
+	omp_set_num_threads(num_threads);
+#endif
+
+	sum = 0;
+#ifdef OMP
+	#pragma omp parallel for private(i, j, k, sum)
+#endif
+	for (i=0; i<size; i++)
+	{
+		for (j=0; j<size; j++)
+		{
+			for (k=0; k<size; k++)
+			{
+				sum = sum + (A[i][k] * B[k][j]); 
+			}
+		}
+		C[i][j] = sum;
+		sum = 0;
+	}
+}
+
+int main(int argc, char *argv[])
+{
+	int i, j;
 	time_t seed;
 	float elapsed_time;
 	struct timeval t1, t2;
@@ -81,32 +107,25 @@ int main(int argc, char *argv[])
 	printf("Matrix Multiplication is being processed with %d threads........\n", num_threads);
 	gettimeofday(&t1, NULL);
 
-#ifdef OMP
-	omp_set_num_threads(num_threads);
-#endif
-
-	sum = 0;
-#ifdef OMP
-	#pragma omp parallel for private(i, j, k, sum)
-#endif
-	for (i=0; i<size; i++)
-	{
-		for (j=0; j<size; j++)
-		{
-			for (k=0; k<size; k++)
-			{
-				sum = sum + (A[i][k] * B[k][j]); 
-			}
-		}
-		C[i][j] = sum;
-		sum = 0;
-	}
+	MatMul(size, A, B, C, num_threads);
 
 	gettimeofday(&t2, NULL);
 	elapsed_time = (float)((t2.tv_sec * 1000000 + t2.tv_usec) - (t1.tv_sec * 1000000 + t1.tv_usec)) / 1000000; 
 	printf("Execution Time = %f seconds.\n", elapsed_time);
 	printf("----------------------------------------------------------------\n");
-	
+
+
+	/* Free allocated memory of matrix A, B, C */
+	for(i=0; i<size; i++)
+	{
+		free(A[i]);
+		free(B[i]);
+		free(C[i]);
+	}	
+	free(A);
+	free(B);
+	free(C);
+
 	printf("Completed!!!\n");
 
 	return 0;
