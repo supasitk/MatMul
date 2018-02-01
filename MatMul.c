@@ -50,7 +50,7 @@ void MatMul(int size, TYPE **A, TYPE **B, TYPE **C, int num_threads)
 	}
 #else
 	i = blockIdx.y * blockDim.y + threadIdx.y; 	//Row i of matrix
-	j = blockIdx.x * blockDim.x + threadIdx.x; 	//Cloumn j of matrix
+	j = blockIdx.x * blockDim.x + threadIdx.x; 	//Column j of matrix
 
 	if (i<size && j<size)
 	{
