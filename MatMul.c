@@ -10,6 +10,10 @@ typedef int TYPE;
 #define HIGH 	10
 #define LOW 	1
 
+#ifdef CUDA
+#define BLOCK_SIZE 32
+#endif
+
 void usage(void)
 {
 	printf("Usage:\n");
@@ -25,14 +29,13 @@ void MatMul(int size, TYPE **A, TYPE **B, TYPE **C, int num_threads)
 {
 	int i, j, k, sum;
 
+	sum = 0;
+
 #ifdef OMP
 	omp_set_num_threads(num_threads);
-#endif
-
-	sum = 0;
-#ifdef OMP
 	#pragma omp parallel for private(i, j, k, sum)
 #endif
+#ifndef CUDA
 	for (i=0; i<size; i++)
 	{
 		for (j=0; j<size; j++)
@@ -45,6 +48,20 @@ void MatMul(int size, TYPE **A, TYPE **B, TYPE **C, int num_threads)
 		C[i][j] = sum;
 		sum = 0;
 	}
+#else
+	i = blockIdx.y * blockDim.y + threadIdx.y; 	//Row i of matrix
+	j = blockIdx.x * blockDim.x + threadIdx.x; 	//Cloumn j of matrix
+
+	if (i<size && j<size)
+	{
+		for (k=0; k<size; k++)
+		{
+			sum = sum + (A[i][k] * B[k][j]); 
+		}
+		C[i][j] = sum;
+		sum = 0;
+	}
+#endif
 }
 
 int main(int argc, char *argv[])
@@ -125,7 +142,10 @@ int main(int argc, char *argv[])
 #ifndef CUDA
 	MatMul(size, A, B, C, num_threads);
 #else
-	MatMul<<<1, 1>>>(size, A, B, C, num_threads);
+	dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
+	dim3 dimGrid((size+dimBlock.x-1)/dimBlock.x, (size+dimBlock.y-1)/dimBlock.y);
+	MatMul<<<dimGrid, dimBlock>>>(size, A, B, C, num_threads);
+	
 	cudaDeviceSynchronize();
 #endif
 
