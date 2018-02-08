@@ -1,0 +1,26 @@
+
+## Makefile for Matrix Multiplication supporting a following compilation:  ##
+## 		1. Parallel execution with OpenMP 		:	-DOMP -fopenmp							 ##		
+##		2. Parallel execution with CUDA				: -DCUDA											 ##
+
+OPTION		= -DOMP -fopenmp
+CC				= gcc
+CFLAGS		= -Wall -O3 $(OPTION)
+
+SRC				= MatMul.c
+TARGET		= MatMul.omp
+
+
+all:		$(TARGET)
+
+$(TARGET):	$(SRC)
+	$(CC) -o $(TARGET) $(CFLAGS) $(SRC)	
+
+run:
+	time ./$(TARGET) -s 5000 -t 4 
+
+clean:
+	$(RM) $(TARGET)
+
+
+
